@@ -1,23 +1,27 @@
 import spidev
 import png
 
+PREAMBLE = 0b11111000
+
 
 class ST7920:
-    def __init__(self):
+    def __init__(self, bus=0, device=0, clock=None, rotation=0):
         self.spi = spidev.SpiDev()
-        self.spi.open(0, 0)
+        self.spi.open(bus, device)
         self.spi.cshigh = True  # use inverted CS
-        self.spi.max_speed_hz = 1800000  # set SPI clock to 1.8MHz, up from 125kHz
 
-        self.send(0, 0, 0x30)  # basic instruction set
-        self.send(0, 0, 0x30)  # repeated
-        self.send(0, 0, 0x0C)  # display on
+        if isinstance(clock, (int, long)):  # if clock is given
+            self.spi.max_speed_hz = clock  # set SPI clock
 
-        self.send(0, 0, 0x34)  # enable RE mode
-        self.send(0, 0, 0x34)
-        self.send(0, 0, 0x36)  # enable graphics display
+        self._send_cmd(0x30)  # basic instruction set
+        self._send_cmd(0x30)  # repeated
+        self._send_cmd(0x0C)  # display on
 
-        self.set_rotation(0)  # rotate to 0 degrees
+        self._send_cmd(0x34)  # extended instruction set
+        self._send_cmd(0x34)  # repeated
+        self._send_cmd(0x36)  # enable graphics display
+
+        self.set_rotation(rotation)  # set rotation
 
         self.fontsheet = self.load_font_sheet("fontsheet.png", 6, 8)
 
@@ -46,20 +50,26 @@ class ST7920:
                     row = rows[(y * ch) + sy]
                     char.append(row[(x * cw):(x + 1) * cw])
                 sheet.append(char)
-        return (sheet, cw, ch)
+        return sheet, cw, ch
 
-    def send(self, rs, rw, cmds):
-        if type(cmds) is int:  # if a single arg, convert to a list
-            cmds = [cmds]
-        b1 = 0b11111000 | ((rw & 0x01) << 2) | ((rs & 0x01) << 1)
-        bytes = []
-        for cmd in cmds:
-            bytes.append(cmd & 0xF0)
-            bytes.append((cmd & 0x0F) << 4)
-        return self.spi.xfer2([b1] + bytes)
+    def _send(self, rs, rw, data):
+        if type(data) is int:  # if a single arg, convert to a list
+            data = [data]
+        b1 = PREAMBLE | ((rw & 0x01) << 2) | ((rs & 0x01) << 1)
+        payloads = []
+        for cmd in data:
+            payloads.append(cmd & 0xF0)
+            payloads.append((cmd & 0x0F) << 4)
+        return self.spi.xfer2([b1] + payloads)
+
+    def _send_cmd(self, cmds):
+        self._send(rs=0, rw=0, data=cmds)
+
+    def _send_data(self, data):
+        self._send(rs=1, rw=0, data=data)
 
     def clear(self):
-        self.fbuff = [[0] * (128 / 8) for i in range(64)]
+        self.fbuff = [[0] * (128 / 8) for _ in range(64)]
 
     def line(self, x1, y1, x2, y2, set=True):
         diffX = abs(x2 - x1)
@@ -114,9 +124,9 @@ class ST7920:
                 self.fbuff[63 - x][y / 8] &= ~(1 << (7 - (y % 8)))
 
     def put_text(self, s, x, y):
+        font, cw, ch = self.fontsheet
         for c in s:
             try:
-                font, cw, ch = self.fontsheet
                 char = font[ord(c)]
                 sy = 0
                 for row in char:
@@ -131,5 +141,5 @@ class ST7920:
 
     def redraw(self, dx1=0, dy1=0, dx2=127, dy2=63):
         for i in range(dy1, dy2 + 1):
-            self.send(0, 0, [0x80 + i % 32, 0x80 + ((dx1 / 16) + (8 if i >= 32 else 0))])  # set address
-            self.send(1, 0, self.fbuff[i][dx1 / 16:(dx2 / 8) + 1])
+            self._send_cmd([0x80 + i % 32, 0x80 + ((dx1 / 16) + (8 if i >= 32 else 0))])  # set address
+            self._send_data(self.fbuff[i][dx1 / 16:(dx2 / 8) + 1])
