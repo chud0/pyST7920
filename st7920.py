@@ -147,5 +147,5 @@ class ST7920:
 
     def redraw(self, dx1=0, dy1=0, dx2=127, dy2=63):
         for i in range(dy1, dy2 + 1):
-            self._send_cmd([0x80 + i % 32, 0x80 + ((dx1 / 16) + (8 if i >= 32 else 0))])  # set address
-            self._send_data(self.fbuff[i][dx1 / 16:(dx2 / 8) + 1])
+            self._send_cmd([0x80 + i % 32, 0x80 + ((dx1 // 16) + (8 if i >= 32 else 0))])  # set address
+            self._send_data(self.fbuff[i][dx1 / 16:(dx2 // 8) + 1])
