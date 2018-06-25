@@ -112,22 +112,22 @@ class ST7920:
             return
         if set:
             if self.rot == 0:
-                self.fbuff[y][x / 8] |= 1 << (7 - (x % 8))
+                self.fbuff[y][x // 8] |= 1 << (7 - (x % 8))
             elif self.rot == 1:
-                self.fbuff[x][15 - (y / 8)] |= 1 << (y % 8)
+                self.fbuff[x][15 - (y // 8)] |= 1 << (y % 8)
             elif self.rot == 2:
-                self.fbuff[63 - y][15 - (x / 8)] |= 1 << (x % 8)
+                self.fbuff[63 - y][15 - (x // 8)] |= 1 << (x % 8)
             elif self.rot == 3:
-                self.fbuff[63 - x][y / 8] |= 1 << (7 - (y % 8))
+                self.fbuff[63 - x][y // 8] |= 1 << (7 - (y % 8))
         else:
             if self.rot == 0:
-                self.fbuff[y][x / 8] &= ~(1 << (7 - (x % 8)))
+                self.fbuff[y][x // 8] &= ~(1 << (7 - (x % 8)))
             elif self.rot == 1:
-                self.fbuff[x][15 - (y / 8)] &= ~(1 << (y % 8))
+                self.fbuff[x][15 - (y // 8)] &= ~(1 << (y % 8))
             elif self.rot == 2:
-                self.fbuff[63 - y][15 - (x / 8)] &= ~(1 << (x % 8))
+                self.fbuff[63 - y][15 - (x // 8)] &= ~(1 << (x % 8))
             elif self.rot == 3:
-                self.fbuff[63 - x][y / 8] &= ~(1 << (7 - (y % 8)))
+                self.fbuff[63 - x][y // 8] &= ~(1 << (7 - (y % 8)))
 
     def put_text(self, s, x, y):
         font, cw, ch = self.fontsheet
