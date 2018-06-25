@@ -1,17 +1,20 @@
 import spidev
 import png
 
-PREAMBLE = 0b11111000
-
 
 class ST7920:
+    X_PIXELS = 128
+    Y_PIXELS = 64
+
+    PREAMBLE = 0b11111000
+
     def __init__(self, bus=0, device=0, clock=None, rotation=0):
         self.spi = spidev.SpiDev()
         self.spi.open(bus, device)
         self.spi.cshigh = True  # use inverted CS
+        self.spi.max_speed_hz = clock  # set SPI clock
 
-        if isinstance(clock, (int, long)):  # if clock is given
-            self.spi.max_speed_hz = clock  # set SPI clock
+        self.buff = None  # buffer to display image
 
         self._send_cmd(0x30)  # basic instruction set
         self._send_cmd(0x30)  # repeated
@@ -21,6 +24,7 @@ class ST7920:
         self._send_cmd(0x34)  # repeated
         self._send_cmd(0x36)  # enable graphics display
 
+        self.rot = None
         self.set_rotation(rotation)  # set rotation
 
         self.fontsheet = self.load_font_sheet("fontsheet.png", 6, 8)
@@ -30,11 +34,11 @@ class ST7920:
 
     def set_rotation(self, rot):
         if rot == 0 or rot == 2:
-            self.width = 128
-            self.height = 64
+            self.width = self.X_PIXELS
+            self.height = self.Y_PIXELS
         elif rot == 1 or rot == 3:
-            self.width = 64
-            self.height = 128
+            self.width = self.Y_PIXELS
+            self.height = self.X_PIXELS
         self.rot = rot
 
     def load_font_sheet(self, filename, cw, ch):
@@ -43,8 +47,8 @@ class ST7920:
         height = len(rows)
         width = len(rows[0])
         sheet = []
-        for y in range(height / ch):
-            for x in range(width / cw):
+        for y in range(height // ch):
+            for x in range(width // cw):
                 char = []
                 for sy in range(ch):
                     row = rows[(y * ch) + sy]
@@ -53,14 +57,15 @@ class ST7920:
         return sheet, cw, ch
 
     def _send(self, rs, rw, data):
-        if type(data) is int:  # if a single arg, convert to a list
+        if isinstance(data, int):  # if a single arg, convert to a list
             data = [data]
-        b1 = PREAMBLE | ((rw & 0x01) << 2) | ((rs & 0x01) << 1)
-        payloads = []
+
+        b1 = self.PREAMBLE | ((rw & 0x01) << 2) | ((rs & 0x01) << 1)
+        payloads = [b1]
         for cmd in data:
             payloads.append(cmd & 0xF0)
             payloads.append((cmd & 0x0F) << 4)
-        return self.spi.xfer2([b1] + payloads)
+        return self.spi.xfer2(payloads)
 
     def _send_cmd(self, cmds):
         self._send(rs=0, rw=0, data=cmds)
@@ -69,7 +74,8 @@ class ST7920:
         self._send(rs=1, rw=0, data=data)
 
     def clear(self):
-        self.fbuff = [[0] * (128 / 8) for _ in range(64)]
+        width_bytes = self.X_PIXELS // 8
+        self.fbuff = [[0] * width_bytes for _ in range(self.Y_PIXELS)]
 
     def line(self, x1, y1, x2, y2, set=True):
         diffX = abs(x2 - x1)
