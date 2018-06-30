@@ -1,5 +1,6 @@
 import spidev
 import png
+import time
 
 
 class ST7920:
@@ -12,16 +13,22 @@ class ST7920:
         self.spi = spidev.SpiDev()
         self.spi.open(bus, device)
         self.spi.cshigh = True  # use inverted CS
+        self.spi.mode = 0b01
         self.spi.max_speed_hz = clock  # set SPI clock
 
         self.buff = None  # buffer to display image
 
         self._send_cmd(0x30)  # basic instruction set
+        time.sleep(0.010)
         self._send_cmd(0x30)  # repeated
+        time.sleep(0.010)
         self._send_cmd(0x0C)  # display on
+        time.sleep(0.010)
 
         self._send_cmd(0x34)  # extended instruction set
+        time.sleep(0.010)
         self._send_cmd(0x34)  # repeated
+        time.sleep(0.010)
         self._send_cmd(0x36)  # enable graphics display
 
         self.rot = None
