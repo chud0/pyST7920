@@ -140,7 +140,7 @@ class ST7920:
         font, cw, ch = self.fontsheet
         for c in s:
             try:
-                char = font[c]
+                char = font[ord(c)]
                 sy = 0
                 for row in char:
                     sx = 0
