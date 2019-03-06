@@ -1,6 +1,6 @@
-import spidev
-import png
 import time
+
+import spidev
 
 
 class ST7920:
@@ -34,8 +34,6 @@ class ST7920:
         self.rot = None
         self.set_rotation(rotation)  # set rotation
 
-        self.fontsheet = self.load_font_sheet("fontsheet.png", 6, 8)
-
         self.clear()
         self.redraw()
 
@@ -47,21 +45,6 @@ class ST7920:
             self.width = self.Y_PIXELS
             self.height = self.X_PIXELS
         self.rot = rot
-
-    def load_font_sheet(self, filename, cw, ch):
-        img = png.Reader(filename).read()
-        rows = list(img[2])
-        height = len(rows)
-        width = len(rows[0])
-        sheet = []
-        for y in range(height // ch):
-            for x in range(width // cw):
-                char = []
-                for sy in range(ch):
-                    row = rows[(y * ch) + sy]
-                    char.append(row[(x * cw):(x + 1) * cw])
-                sheet.append(char)
-        return sheet, cw, ch
 
     def _send(self, rs, rw, data):
         if isinstance(data, int):  # if a single arg, convert to a list
@@ -135,22 +118,6 @@ class ST7920:
                 self.fbuff[63 - y][15 - (x // 8)] &= ~(1 << (x % 8))
             elif self.rot == 3:
                 self.fbuff[63 - x][y // 8] &= ~(1 << (7 - (y % 8)))
-
-    def put_text(self, s, x, y):
-        font, cw, ch = self.fontsheet
-        for c in s:
-            try:
-                char = font[ord(c)]
-                sy = 0
-                for row in char:
-                    sx = 0
-                    for px in row:
-                        self.plot(x + sx, y + sy, px == 1)
-                        sx += 1
-                    sy += 1
-            except KeyError:
-                pass
-            x += cw
 
     def redraw(self, dx1=0, dy1=0, dx2=127, dy2=63):
         for i in range(dy1, dy2 + 1):
